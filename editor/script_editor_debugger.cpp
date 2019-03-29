@@ -1040,17 +1040,6 @@ void ScriptEditorDebugger::_notification(int p_what) {
 
 			reason->add_color_override("font_color", get_color("error_color", "Editor"));
 
-			bool enable_rl = EditorSettings::get_singleton()->get("docks/scene_tree/draw_relationship_lines");
-			Color rl_color = EditorSettings::get_singleton()->get("docks/scene_tree/relationship_line_color");
-
-			if (enable_rl) {
-				inspect_scene_tree->add_constant_override("draw_relationship_lines", 1);
-				inspect_scene_tree->add_color_override("relationship_line_color", rl_color);
-				inspect_scene_tree->add_constant_override("draw_guides", 0);
-			} else {
-				inspect_scene_tree->add_constant_override("draw_relationship_lines", 0);
-				inspect_scene_tree->add_constant_override("draw_guides", 1);
-			}
 		} break;
 		case NOTIFICATION_PROCESS: {
 
@@ -1084,19 +1073,19 @@ void ScriptEditorDebugger::_notification(int p_what) {
 			if (error_count != last_error_count || warning_count != last_warning_count) {
 
 				if (error_count == 0 && warning_count == 0) {
-					error_tree->set_name(TTR("Errors"));
+					errors_tab->set_name(TTR("Errors"));
 					debugger_button->set_text(TTR("Debugger"));
 					debugger_button->set_icon(Ref<Texture>());
-					tabs->set_tab_icon(error_tree->get_index(), Ref<Texture>());
+					tabs->set_tab_icon(errors_tab->get_index(), Ref<Texture>());
 				} else {
-					error_tree->set_name(TTR("Errors") + " (" + itos(error_count + warning_count) + ")");
+					errors_tab->set_name(TTR("Errors") + " (" + itos(error_count + warning_count) + ")");
 					debugger_button->set_text(TTR("Debugger") + " (" + itos(error_count + warning_count) + ")");
 					if (error_count == 0) {
 						debugger_button->set_icon(get_icon("Warning", "EditorIcons"));
-						tabs->set_tab_icon(error_tree->get_index(), get_icon("Warning", "EditorIcons"));
+						tabs->set_tab_icon(errors_tab->get_index(), get_icon("Warning", "EditorIcons"));
 					} else {
 						debugger_button->set_icon(get_icon("Error", "EditorIcons"));
-						tabs->set_tab_icon(error_tree->get_index(), get_icon("Error", "EditorIcons"));
+						tabs->set_tab_icon(errors_tab->get_index(), get_icon("Error", "EditorIcons"));
 					}
 				}
 				last_error_count = error_count;
@@ -1226,23 +1215,14 @@ void ScriptEditorDebugger::_notification(int p_what) {
 				if (OS::get_singleton()->get_ticks_msec() > until)
 					break;
 			}
-
 		} break;
 		case EditorSettings::NOTIFICATION_EDITOR_SETTINGS_CHANGED: {
+
 			tabs->add_style_override("panel", editor->get_gui_base()->get_stylebox("DebuggerPanel", "EditorStyles"));
 			tabs->add_style_override("tab_fg", editor->get_gui_base()->get_stylebox("DebuggerTabFG", "EditorStyles"));
 			tabs->add_style_override("tab_bg", editor->get_gui_base()->get_stylebox("DebuggerTabBG", "EditorStyles"));
 			tabs->set_margin(MARGIN_LEFT, -EditorNode::get_singleton()->get_gui_base()->get_stylebox("BottomPanelDebuggerOverride", "EditorStyles")->get_margin(MARGIN_LEFT));
 			tabs->set_margin(MARGIN_RIGHT, EditorNode::get_singleton()->get_gui_base()->get_stylebox("BottomPanelDebuggerOverride", "EditorStyles")->get_margin(MARGIN_RIGHT));
-
-			bool enable_rl = EditorSettings::get_singleton()->get("docks/scene_tree/draw_relationship_lines");
-			Color rl_color = EditorSettings::get_singleton()->get("docks/scene_tree/relationship_line_color");
-
-			if (enable_rl) {
-				inspect_scene_tree->add_constant_override("draw_relationship_lines", 1);
-				inspect_scene_tree->add_color_override("relationship_line_color", rl_color);
-			} else
-				inspect_scene_tree->add_constant_override("draw_relationship_lines", 0);
 
 			copy->set_icon(get_icon("ActionCopy", "EditorIcons"));
 			step->set_icon(get_icon("DebugStep", "EditorIcons"));
@@ -1252,7 +1232,6 @@ void ScriptEditorDebugger::_notification(int p_what) {
 			dobreak->set_icon(get_icon("Pause", "EditorIcons"));
 			docontinue->set_icon(get_icon("DebugContinue", "EditorIcons"));
 			vmem_refresh->set_icon(get_icon("Reload", "EditorIcons"));
-
 		} break;
 	}
 }
@@ -2054,11 +2033,11 @@ ScriptEditorDebugger::ScriptEditorDebugger(EditorNode *p_editor) {
 	}
 
 	{ //errors
-		VBoxContainer *errvb = memnew(VBoxContainer);
-		errvb->set_name(TTR("Errors"));
+		errors_tab = memnew(VBoxContainer);
+		errors_tab->set_name(TTR("Errors"));
 
 		HBoxContainer *errhb = memnew(HBoxContainer);
-		errvb->add_child(errhb);
+		errors_tab->add_child(errhb);
 
 		Button *expand_all = memnew(Button);
 		expand_all->set_text(TTR("Expand All"));
@@ -2093,13 +2072,13 @@ ScriptEditorDebugger::ScriptEditorDebugger(EditorNode *p_editor) {
 		error_tree->set_v_size_flags(SIZE_EXPAND_FILL);
 		error_tree->set_allow_rmb_select(true);
 		error_tree->connect("item_rmb_selected", this, "_error_tree_item_rmb_selected");
-		errvb->add_child(error_tree);
+		errors_tab->add_child(error_tree);
 
 		item_menu = memnew(PopupMenu);
 		item_menu->connect("id_pressed", this, "_item_menu_id_pressed");
 		error_tree->add_child(item_menu);
 
-		tabs->add_child(errvb);
+		tabs->add_child(errors_tab);
 	}
 
 	{ // remote scene tree

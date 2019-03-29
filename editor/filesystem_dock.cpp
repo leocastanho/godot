@@ -231,7 +231,6 @@ void FileSystemDock::_update_tree(const Vector<String> p_uncollapsed_paths, bool
 
 void FileSystemDock::set_display_mode(DisplayMode p_display_mode) {
 	display_mode = p_display_mode;
-	emit_signal("display_mode_changed");
 	_update_display_mode(false);
 }
 
@@ -284,8 +283,7 @@ void FileSystemDock::_notification(int p_what) {
 			String ei = "EditorIcons";
 			button_reload->set_icon(get_icon("Reload", ei));
 			button_toggle_display_mode->set_icon(get_icon("Panels2", ei));
-			_update_file_list_display_mode_button();
-			button_file_list_display_mode->connect("pressed", this, "_change_file_display");
+			button_file_list_display_mode->connect("pressed", this, "_toggle_file_display");
 
 			files->connect("item_activated", this, "_file_list_activate_file");
 			button_hist_next->connect("pressed", this, "_fw_history");
@@ -303,6 +301,8 @@ void FileSystemDock::_notification(int p_what) {
 			current_path->connect("text_entered", this, "_navigate_to_path");
 
 			always_show_folders = bool(EditorSettings::get_singleton()->get("docks/filesystem/always_show_folders"));
+
+			set_file_list_display_mode(FileSystemDock::FILE_LIST_DISPLAY_LIST);
 
 			_update_display_mode();
 
@@ -350,7 +350,7 @@ void FileSystemDock::_notification(int p_what) {
 			button_toggle_display_mode->set_icon(get_icon("Panels2", ei));
 			button_hist_next->set_icon(get_icon("Forward", ei));
 			button_hist_prev->set_icon(get_icon("Back", ei));
-			if (button_file_list_display_mode->is_pressed()) {
+			if (file_list_display_mode == FILE_LIST_DISPLAY_LIST) {
 				button_file_list_display_mode->set_icon(get_icon("FileThumbnail", "EditorIcons"));
 			} else {
 				button_file_list_display_mode->set_icon(get_icon("FileList", "EditorIcons"));
@@ -501,9 +501,13 @@ void FileSystemDock::_tree_thumbnail_done(const String &p_path, const Ref<Textur
 	}
 }
 
-void FileSystemDock::_update_file_list_display_mode_button() {
+void FileSystemDock::_toggle_file_display() {
+	_set_file_display(file_list_display_mode != FILE_LIST_DISPLAY_LIST);
+	emit_signal("display_mode_changed");
+}
 
-	if (button_file_list_display_mode->is_pressed()) {
+void FileSystemDock::_set_file_display(bool p_active) {
+	if (p_active) {
 		file_list_display_mode = FILE_LIST_DISPLAY_LIST;
 		button_file_list_display_mode->set_icon(get_icon("FileThumbnail", "EditorIcons"));
 		button_file_list_display_mode->set_tooltip(TTR("View items as a grid of thumbnails."));
@@ -512,14 +516,6 @@ void FileSystemDock::_update_file_list_display_mode_button() {
 		button_file_list_display_mode->set_icon(get_icon("FileList", "EditorIcons"));
 		button_file_list_display_mode->set_tooltip(TTR("View items as a list."));
 	}
-	emit_signal("display_mode_changed");
-}
-
-void FileSystemDock::_change_file_display() {
-
-	_update_file_list_display_mode_button();
-
-	EditorSettings::get_singleton()->set("docks/filesystem/files_display_mode", file_list_display_mode);
 
 	_update_file_list(true);
 }
@@ -1679,6 +1675,7 @@ void FileSystemDock::_rescan() {
 
 void FileSystemDock::_toggle_split_mode(bool p_active) {
 	set_display_mode(p_active ? DISPLAY_MODE_SPLIT : DISPLAY_MODE_TREE_ONLY);
+	emit_signal("display_mode_changed");
 }
 
 void FileSystemDock::fix_dependencies(const String &p_for_file) {
@@ -1695,8 +1692,7 @@ void FileSystemDock::set_file_list_display_mode(FileListDisplayMode p_mode) {
 	if (p_mode == file_list_display_mode)
 		return;
 
-	button_file_list_display_mode->set_pressed(p_mode == FILE_LIST_DISPLAY_LIST);
-	_change_file_display();
+	_toggle_file_display();
 }
 
 Variant FileSystemDock::get_drag_data_fw(const Point2 &p_point, Control *p_from) {
@@ -2284,8 +2280,8 @@ void FileSystemDock::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_file_list_activate_file"), &FileSystemDock::_file_list_activate_file);
 	ClassDB::bind_method(D_METHOD("_tree_activate_file"), &FileSystemDock::_tree_activate_file);
 	ClassDB::bind_method(D_METHOD("_select_file"), &FileSystemDock::_select_file);
-	ClassDB::bind_method(D_METHOD("_navigate_to_path"), &FileSystemDock::_navigate_to_path);
-	ClassDB::bind_method(D_METHOD("_change_file_display"), &FileSystemDock::_change_file_display);
+	ClassDB::bind_method(D_METHOD("_navigate_to_path"), &FileSystemDock::_navigate_to_path, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("_toggle_file_display"), &FileSystemDock::_toggle_file_display);
 	ClassDB::bind_method(D_METHOD("_fw_history"), &FileSystemDock::_fw_history);
 	ClassDB::bind_method(D_METHOD("_bw_history"), &FileSystemDock::_bw_history);
 	ClassDB::bind_method(D_METHOD("_fs_changed"), &FileSystemDock::_fs_changed);
@@ -2380,29 +2376,6 @@ FileSystemDock::FileSystemDock(EditorNode *p_editor) {
 	tree_search_box->connect("text_changed", this, "_search_changed", varray(tree_search_box));
 	toolbar2_hbc->add_child(tree_search_box);
 
-	//toolbar_hbc->add_spacer();
-
-	//Control *spacer = memnew( Control);
-
-	/*
-	button_open = memnew( Button );
-	button_open->set_flat(true);
-	button_open->connect("pressed",this,"_tree_toggle_collapsed");
-	toolbar_hbc->add_child(button_open);
-	button_open->hide();
-	button_open->set_focus_mode(FOCUS_NONE);
-	button_open->set_tooltip("Open the selected file.\nOpen as scene if a scene, or as resource otherwise.");
-
-
-	button_instance = memnew( Button );
-	button_instance->set_flat(true);
-	button_instance->connect("pressed",this,"_instance_pressed");
-	toolbar_hbc->add_child(button_instance);
-	button_instance->hide();
-	button_instance->set_focus_mode(FOCUS_NONE);
-	button_instance->set_tooltip(TTR("Instance the selected scene(s) as child of the selected node."));
-
-*/
 	file_list_popup = memnew(PopupMenu);
 	file_list_popup->set_hide_on_window_lose_focus(true);
 	add_child(file_list_popup);
@@ -2444,7 +2417,6 @@ FileSystemDock::FileSystemDock(EditorNode *p_editor) {
 	path_hb->add_child(file_list_search_box);
 
 	button_file_list_display_mode = memnew(ToolButton);
-	button_file_list_display_mode->set_toggle_mode(true);
 	path_hb->add_child(button_file_list_display_mode);
 
 	files = memnew(ItemList);

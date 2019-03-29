@@ -237,8 +237,7 @@ Error EditorSceneImporterGLTF::_parse_nodes(GLTFState &state) {
 				node->scale = _arr_to_vec3(n["scale"]);
 			}
 
-			node->xform.basis = Basis(node->rotation);
-			node->xform.basis.scale(node->scale);
+			node->xform.basis.set_quat_scale(node->rotation, node->scale);
 			node->xform.origin = node->translation;
 		}
 
@@ -892,9 +891,11 @@ Error EditorSceneImporterGLTF::_parse_meshes(GLTFState &state) {
 				primitive = primitives2[mode];
 			}
 
+			ERR_FAIL_COND_V(!a.has("POSITION"), ERR_PARSE_ERROR);
 			if (a.has("POSITION")) {
 				array[Mesh::ARRAY_VERTEX] = _decode_accessor_as_vec3(state, a["POSITION"], true);
 			}
+
 			if (a.has("NORMAL")) {
 				array[Mesh::ARRAY_NORMAL] = _decode_accessor_as_vec3(state, a["NORMAL"], true);
 			}
@@ -2119,6 +2120,7 @@ Spatial *EditorSceneImporterGLTF::_generate_scene(GLTFState &state, int p_bake_f
 	Vector<Skeleton *> skeletons;
 	for (int i = 0; i < state.skins.size(); i++) {
 		Skeleton *s = memnew(Skeleton);
+		s->set_use_bones_in_world_transform(false); //GLTF does not need this since meshes are always local
 		String name = state.skins[i].name;
 		if (name == "") {
 			name = _gen_unique_name(state, "Skeleton");
